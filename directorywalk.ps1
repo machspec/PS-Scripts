@@ -1,0 +1,2 @@
+$Shares = Import-Csv -Path "D:\Shares.csv"
+Foreach ($_ in $Shares) {Get-Childitem $_.ShareName -Directory -Depth 0 | Select-Object -Property FullName, Name, LastWriteTime | Sort-Object -Property LastWriteTime -Descending | Export-Csv -Path "D:\DirectoryWalk.csv" -Append}
