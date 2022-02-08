@@ -1,1 +1,1 @@
-get-adcomputer -Filter * -Properties * | select enabled, DNSHostName, Name, createTimeStamp, PasswordLastSet,  | export-csv AllADUserDetails.csv
+Get-ADComputer -Filter * -Properties * | Select-Object enabled, DNSHostName, Name, createTimeStamp, PasswordLastSet | export-csv AllADUserDetails.csv
