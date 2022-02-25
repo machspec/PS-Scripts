@@ -37,20 +37,50 @@ Function DecodeUserAccountControl ([int]$UAC) {
     return (0..($UACPropertyFlags.Length) | Where-Object { $UAC -bAnd [math]::Pow(2, $_) } | ForEach-Object { $UACPropertyFlags[$_] }) -join ” | ”
 }
 
+Function AuditComputer {
+    # Audit Last time computer password was refreshed
+    Get-ADComputer -Filter * -Properties * |
+    Select-Object enabled, DNSHostName, Name, createTimeStamp, PasswordLastSet, 
+    @{Name = "LastLogon"; Expression = { [DateTime]::FromFileTime($_.lastlogon) } }, 
+    UserAccountControl,
+    @{Name = "UserAccountControl-Translated"; Expression = { DecodeUserAccountControl $_.UserAccountControl } } |
+    Out-GridView -Title "Computer Audit"
+}
 
-# Audit Last time computer password was refreshed
-Get-ADComputer -Filter * -Properties * |
-Select-Object enabled, DNSHostName, Name, createTimeStamp, PasswordLastSet, 
-@{Name = "LastLogon"; Expression = { [DateTime]::FromFileTime($_.lastlogon) } }, 
-UserAccountControl,
-@{Name = "UserAccountControl-Translated"; Expression = { DecodeUserAccountControl $_.UserAccountControl } } |
-Out-GridView -Title "Computer Audit"
+Function AuditUser {
+    # Audit user groups, time of last password change, and time of last login
+    Get-ADUser -Filter * -Properties * |
+    Select-Object Enabled, SamAccountName, Name, Displayname, PrimaryGroup, MemberOf, PasswordLastSet, 
+    @{Name = "LastLogon"; Expression = { [DateTime]::FromFileTime($_.lastlogon) } }, createTimeStamp, logonCount, 
+    UserAccountControl,
+    @{Name = "UserAccountControl-Translated"; Expression = { DecodeUserAccountControl $_.UserAccountControl } } |
+    Out-GridView -Title "User Audit"
+}
 
+Function HelpMenu {
+    # Displays available arguments / flags
+    Write-Host "
+Available flags:
+--help      h      Displays this menu
+--users     u      Audits Active Directory users
+--computers c      Audits Active Directory computers
+    "
+}
 
-# Audit user groups, time of last password change, and time of last login
-Get-ADUser -Filter * -Properties * |
-Select-Object Enabled, SamAccountName, Name, Displayname, PrimaryGroup, MemberOf, PasswordLastSet, 
-@{Name = "LastLogon"; Expression = { [DateTime]::FromFileTime($_.lastlogon) } }, createTimeStamp, logonCount, 
-UserAccountControl,
-@{Name = "UserAccountControl-Translated"; Expression = { DecodeUserAccountControl $_.UserAccountControl } } |
-Out-GridView -Title "User Audit"
+$param = $args[0]
+
+switch ($param) {
+    "--help" { HelpMenu }
+    "-h" { HelpMenu }
+    "--users" { AuditUser }
+    "-u" { AuditUser }
+    "--computers" { AuditComputer }
+    "-c" { AuditComputer }
+    "--all" { AuditUser; AuditComputer }
+    Default { 
+        Write-Host "
+    Usage: audit [OPTION]
+    Use audit --help for more information.
+        "
+    }
+}
